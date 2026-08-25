@@ -1,4 +1,4 @@
-//go:build !lint
+//go:build ignore
 
 package util
 

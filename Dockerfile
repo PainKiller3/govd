@@ -1,15 +1,8 @@
-FROM golang:1.24-alpine3.21 AS builder
+FROM golang:1.26-alpine AS builder
 
 ENV GOCACHE=/root/.cache/go-build
-ENV GOTOOLCHAIN=auto
 
-RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
-    --mount=type=cache,target=/var/lib/apk,sharing=locked \
-    apk add --no-cache \
-        --repository="https://dl-cdn.alpinelinux.org/alpine/v3.21/main" \
-        --repository="https://dl-cdn.alpinelinux.org/alpine/v3.21/community" \
-        build-base \
-        libheif-dev
+RUN apk add --no-cache build-base
 
 WORKDIR /app
 
@@ -26,21 +19,15 @@ COPY . .
 RUN sqlc generate
 
 RUN --mount=type=cache,target="/root/.cache/go-build" \
-    CGO_ENABLED=1 go build \
+    CGO_ENABLED=0 go build \
         -ldflags="-s -w" \
         -o govd ./cmd/main.go
 
-FROM alpine:3.21 AS runtime
+FROM alpine:latest AS runtime
 
 WORKDIR /app
 
-RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
-    --mount=type=cache,target=/var/lib/apk,sharing=locked \
-    apk add --no-cache \
-        --repository="https://dl-cdn.alpinelinux.org/alpine/v3.21/main" \
-        --repository="https://dl-cdn.alpinelinux.org/alpine/v3.21/community" \
-        ffmpeg \
-        libheif
+RUN apk add --no-cache ffmpeg
 
 COPY --from=builder /app/govd ./govd
 
