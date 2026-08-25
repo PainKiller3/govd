@@ -1,14 +1,15 @@
-FROM golang:1.26-alpine AS builder
+FROM golang:1.24-alpine3.21 AS builder
 
 ENV GOCACHE=/root/.cache/go-build
+ENV GOTOOLCHAIN=auto
 
 RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
     --mount=type=cache,target=/var/lib/apk,sharing=locked \
     apk add --no-cache \
-        --repository="https://dl-cdn.alpinelinux.org/alpine/edge/main" \
-        --repository="https://dl-cdn.alpinelinux.org/alpine/edge/community" \
-        "build-base=0.5-r4" \
-        "libheif-dev=1.21.2-r2"
+        --repository="https://dl-cdn.alpinelinux.org/alpine/v3.21/main" \
+        --repository="https://dl-cdn.alpinelinux.org/alpine/v3.21/community" \
+        build-base \
+        libheif-dev
 
 WORKDIR /app
 
@@ -29,17 +30,17 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
         -ldflags="-s -w" \
         -o govd ./cmd/main.go
 
-FROM alpine:3.22 AS runtime
+FROM alpine:3.21 AS runtime
 
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
     --mount=type=cache,target=/var/lib/apk,sharing=locked \
     apk add --no-cache \
-        --repository="https://dl-cdn.alpinelinux.org/alpine/edge/main" \
-        --repository="https://dl-cdn.alpinelinux.org/alpine/edge/community" \
-        "ffmpeg=8.0.1-r3" \
-        "libheif=1.21.2-r2"
+        --repository="https://dl-cdn.alpinelinux.org/alpine/v3.21/main" \
+        --repository="https://dl-cdn.alpinelinux.org/alpine/v3.21/community" \
+        ffmpeg \
+        libheif
 
 COPY --from=builder /app/govd ./govd
 

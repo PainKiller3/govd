@@ -1,5 +1,8 @@
 services:
   bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: govdbot/govd:main
     container_name: bot
     restart: unless-stopped
