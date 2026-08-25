@@ -43,6 +43,8 @@ type EnvConfig struct {
 	DefaultDeleteLinks     bool
 
 	AutomaticLanguageDetection bool
+
+	MonthlyBandwidth int64
 }
 
 type ExtractorConfig struct {

@@ -132,6 +132,7 @@ func formatMessage(period string) (string, error) {
 
 	message += fmt.Sprintf("\n<b>downloads:</b> %d\n", stats.TotalDownloads)
 	message += fmt.Sprintf("<b>total size:</b> %.2f GB\n", sizeGB)
+	message += fmt.Sprintf("<b>bandwidth:</b> %s\n", util.GetBandwidthString())
 
 	return message, nil
 }
