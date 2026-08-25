@@ -23,15 +23,15 @@ services:
     container_name: db-dev
     restart: unless-stopped
     environment:
-      POSTGRES_DB: govd
-      POSTGRES_USER: govd
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${DB_NAME:-govd}
+      POSTGRES_USER: ${DB_USER:-govd}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
     volumes:
       - db:/var/lib/postgresql
     networks:
       - govd-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U govd"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-govd}"]
       interval: 3s
       timeout: 5s
       retries: 30
@@ -42,7 +42,7 @@ services:
     restart: unless-stopped
     command: >
       --bind=0.0.0.0
-      --url=postgres://govd:password@db:5432/govd?sslmode=disable
+      --url=postgres://${DB_USER:-govd}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-govd}?sslmode=disable
       --log-level=error
     environment:
       PGWEB_AUTH_USER: ${PGWEB_USER:-admin}

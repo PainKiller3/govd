@@ -23,9 +23,9 @@ services:
     container_name: db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: govd
-      POSTGRES_USER: govd
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${DB_NAME:-govd}
+      POSTGRES_USER: ${DB_USER:-govd}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
     volumes:
       - db:/var/lib/postgresql
     networks:
