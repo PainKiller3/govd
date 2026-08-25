@@ -69,8 +69,8 @@ func ParseGQLMedia(ctx *models.ExtractorContext, data *Media) (*models.Media, er
 	media := ctx.NewMedia()
 	media.SetCaption(caption)
 
-	switch data.Typename {
-	case "GraphVideo", "XDTGraphVideo":
+	switch {
+	case data.Typename == "GraphVideo" || data.Typename == "XDTGraphVideo" || data.IsVideo:
 		item := media.NewItem()
 		item.AddFormats(&models.MediaFormat{
 			FormatID:     "video",
@@ -82,40 +82,52 @@ func ParseGQLMedia(ctx *models.ExtractorContext, data *Media) (*models.Media, er
 			Width:        data.Dimensions.Width,
 			Height:       data.Dimensions.Height,
 		})
-	case "GraphImage", "XDTGraphImage":
+	case data.Typename == "GraphImage" || data.Typename == "XDTGraphImage" || (!data.IsVideo && data.DisplayURL != "" && (data.EdgeSidecarToChildren == nil || len(data.EdgeSidecarToChildren.Edges) == 0)):
 		item := media.NewItem()
 		item.AddFormats(&models.MediaFormat{
 			FormatID: "image",
 			Type:     database.MediaTypePhoto,
 			URL:      []string{data.DisplayURL},
 		})
-	case "GraphSidecar", "XDTGraphSidecar":
+	case data.Typename == "GraphSidecar" || data.Typename == "XDTGraphSidecar" || (data.EdgeSidecarToChildren != nil && len(data.EdgeSidecarToChildren.Edges) > 0):
 		if data.EdgeSidecarToChildren != nil && len(data.EdgeSidecarToChildren.Edges) > 0 {
 			edges := data.EdgeSidecarToChildren.Edges
 
 			for i := range edges {
-				item := media.NewItem()
 				node := edges[i].Node
+				if node == nil {
+					continue
+				}
 
-				switch node.Typename {
-				case "GraphVideo", "XDTGraphVideo":
-					item.AddFormats(&models.MediaFormat{
-						FormatID:     "video",
-						Type:         database.MediaTypeVideo,
-						VideoCodec:   database.MediaCodecAvc,
-						AudioCodec:   database.MediaCodecAac,
-						URL:          []string{node.VideoURL},
-						ThumbnailURL: []string{node.DisplayURL},
-						Width:        node.Dimensions.Width,
-						Height:       node.Dimensions.Height,
-					})
+				item := media.NewItem()
+				switch {
+				case node.Typename == "GraphVideo" || node.Typename == "XDTGraphVideo" || node.IsVideo:
+					if node.VideoURL != "" {
+						item.AddFormats(&models.MediaFormat{
+							FormatID:     "video",
+							Type:         database.MediaTypeVideo,
+							VideoCodec:   database.MediaCodecAvc,
+							AudioCodec:   database.MediaCodecAac,
+							URL:          []string{node.VideoURL},
+							ThumbnailURL: []string{node.DisplayURL},
+							Width:        node.Dimensions.Width,
+							Height:       node.Dimensions.Height,
+						})
+					}
 
-				case "GraphImage", "XDTGraphImage":
-					item.AddFormats(&models.MediaFormat{
-						FormatID: "image",
-						Type:     database.MediaTypePhoto,
-						URL:      []string{node.DisplayURL},
-					})
+				case node.Typename == "GraphImage" || node.Typename == "XDTGraphImage" || (!node.IsVideo && node.DisplayURL != ""):
+					if node.DisplayURL != "" {
+						item.AddFormats(&models.MediaFormat{
+							FormatID: "image",
+							Type:     database.MediaTypePhoto,
+							URL:      []string{node.DisplayURL},
+						})
+					}
+				}
+
+				// remove empty item if no format matched
+				if len(item.Formats) == 0 && len(media.Items) > 0 {
+					media.Items = media.Items[:len(media.Items)-1]
 				}
 			}
 		}
@@ -379,7 +391,7 @@ func BuildGQLData() (map[string]string, map[string]string, error) {
 	}
 	jazoest := strconv.FormatInt(jazoestBig.Int64()+1, 10)
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	cookies := []string{
+	cookieList := []string{
 		"csrftoken=" + csrfToken,
 		"ig_did=" + deviceID,
 		"wd=1280x720",
@@ -387,13 +399,23 @@ func BuildGQLData() (map[string]string, map[string]string, error) {
 		"mid=" + machineID,
 		"ig_nrcb=1",
 	}
+
+	cookieStr := strings.Join(cookieList, "; ")
+	if customCookies := util.GetExtractorCookies("instagram"); len(customCookies) > 0 {
+		var parts []string
+		for _, c := range customCookies {
+			parts = append(parts, c.Name+"="+c.Value)
+		}
+		cookieStr = strings.Join(parts, "; ")
+	}
+
 	headers := map[string]string{
 		"x-ig-app-id":        appID,
 		"X-FB-LSD":           sessionData,
 		"X-CSRFToken":        csrfToken,
 		"X-Bloks-Version-Id": bloksVersionID,
 		"x-asbd-id":          asbdID,
-		"cookie":             strings.Join(cookies, "; "),
+		"cookie":             cookieStr,
 		"Content-Type":       "application/x-www-form-urlencoded",
 		"X-FB-Friendly-Name": polarisAction,
 	}
