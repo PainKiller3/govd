@@ -404,6 +404,9 @@ func BuildGQLData() (map[string]string, map[string]string, error) {
 	if customCookies := util.GetExtractorCookies("instagram"); len(customCookies) > 0 {
 		var parts []string
 		for _, c := range customCookies {
+			if c.Name == "csrftoken" && c.Value != "" {
+				csrfToken = c.Value
+			}
 			parts = append(parts, c.Name+"="+c.Value)
 		}
 		cookieStr = strings.Join(parts, "; ")
