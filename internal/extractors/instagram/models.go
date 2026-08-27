@@ -6,7 +6,8 @@ type GraphQLResponse struct {
 }
 
 type GraphQLData struct {
-	ShortcodeMedia *Media `json:"xdt_shortcode_media"`
+	ShortcodeMedia            *Media `json:"xdt_shortcode_media"`
+	AlternativeShortcodeMedia *Media `json:"shortcode_media"`
 }
 
 type ContextJSON struct {

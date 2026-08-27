@@ -355,6 +355,9 @@ func GetGQLData(ctx *models.ExtractorContext) (*GraphQLData, error) {
 		return nil, fmt.Errorf("status is not ok: %s", response.Status)
 	}
 	if response.Data.ShortcodeMedia == nil {
+		response.Data.ShortcodeMedia = response.Data.AlternativeShortcodeMedia
+	}
+	if response.Data.ShortcodeMedia == nil {
 		return nil, fmt.Errorf("shortcode_media is nil")
 	}
 	return response.Data, nil
