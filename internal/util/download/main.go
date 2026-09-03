@@ -26,6 +26,18 @@ func DownloadFile(
 	if ctx == nil {
 		return "", fmt.Errorf("nil extractor context")
 	}
+
+	var validURLs []string
+	for _, u := range urlList {
+		if strings.TrimSpace(u) != "" {
+			validURLs = append(validURLs, u)
+		}
+	}
+	if len(validURLs) == 0 {
+		return "", fmt.Errorf("no valid URL provided for download")
+	}
+	urlList = validURLs
+
 	settings = ensureDownloadSettings(settings)
 	ensureDownloadDir()
 
@@ -154,6 +166,18 @@ func DownloadFileInMemory(
 	if ctx == nil {
 		return nil, fmt.Errorf("nil extractor context")
 	}
+
+	var validURLs []string
+	for _, u := range urlList {
+		if strings.TrimSpace(u) != "" {
+			validURLs = append(validURLs, u)
+		}
+	}
+	if len(validURLs) == 0 {
+		return nil, fmt.Errorf("no valid URL provided for download")
+	}
+	urlList = validURLs
+
 	settings = ensureDownloadSettings(settings)
 
 	client := ctx.HTTPClient.AsDownloadClient()

@@ -61,9 +61,15 @@ var (
 )
 
 func ParseGQLMedia(ctx *models.ExtractorContext, data *Media) (*models.Media, error) {
+	if data == nil {
+		return nil, fmt.Errorf("nil media data")
+	}
+
 	var caption string
 	if data.EdgeMediaToCaption != nil && len(data.EdgeMediaToCaption.Edges) > 0 {
-		caption = data.EdgeMediaToCaption.Edges[0].Node.Text
+		if data.EdgeMediaToCaption.Edges[0].Node != nil {
+			caption = data.EdgeMediaToCaption.Edges[0].Node.Text
+		}
 	}
 
 	media := ctx.NewMedia()
@@ -71,18 +77,28 @@ func ParseGQLMedia(ctx *models.ExtractorContext, data *Media) (*models.Media, er
 
 	switch {
 	case data.Typename == "GraphVideo" || data.Typename == "XDTGraphVideo" || data.IsVideo:
+		if strings.TrimSpace(data.VideoURL) == "" {
+			return nil, fmt.Errorf("video_url is empty")
+		}
 		item := media.NewItem()
+		var thumbnailURL []string
+		if strings.TrimSpace(data.DisplayURL) != "" {
+			thumbnailURL = []string{data.DisplayURL}
+		}
 		item.AddFormats(&models.MediaFormat{
 			FormatID:     "video",
 			Type:         database.MediaTypeVideo,
 			VideoCodec:   database.MediaCodecAvc,
 			AudioCodec:   database.MediaCodecAac,
 			URL:          []string{data.VideoURL},
-			ThumbnailURL: []string{data.DisplayURL},
+			ThumbnailURL: thumbnailURL,
 			Width:        data.Dimensions.Width,
 			Height:       data.Dimensions.Height,
 		})
 	case data.Typename == "GraphImage" || data.Typename == "XDTGraphImage" || (!data.IsVideo && data.DisplayURL != "" && (data.EdgeSidecarToChildren == nil || len(data.EdgeSidecarToChildren.Edges) == 0)):
+		if strings.TrimSpace(data.DisplayURL) == "" {
+			return nil, fmt.Errorf("display_url is empty")
+		}
 		item := media.NewItem()
 		item.AddFormats(&models.MediaFormat{
 			FormatID: "image",
@@ -102,21 +118,25 @@ func ParseGQLMedia(ctx *models.ExtractorContext, data *Media) (*models.Media, er
 				item := media.NewItem()
 				switch {
 				case node.Typename == "GraphVideo" || node.Typename == "XDTGraphVideo" || node.IsVideo:
-					if node.VideoURL != "" {
+					if strings.TrimSpace(node.VideoURL) != "" {
+						var thumb []string
+						if strings.TrimSpace(node.DisplayURL) != "" {
+							thumb = []string{node.DisplayURL}
+						}
 						item.AddFormats(&models.MediaFormat{
 							FormatID:     "video",
 							Type:         database.MediaTypeVideo,
 							VideoCodec:   database.MediaCodecAvc,
 							AudioCodec:   database.MediaCodecAac,
 							URL:          []string{node.VideoURL},
-							ThumbnailURL: []string{node.DisplayURL},
+							ThumbnailURL: thumb,
 							Width:        node.Dimensions.Width,
 							Height:       node.Dimensions.Height,
 						})
 					}
 
 				case node.Typename == "GraphImage" || node.Typename == "XDTGraphImage" || (!node.IsVideo && node.DisplayURL != ""):
-					if node.DisplayURL != "" {
+					if strings.TrimSpace(node.DisplayURL) != "" {
 						item.AddFormats(&models.MediaFormat{
 							FormatID: "image",
 							Type:     database.MediaTypePhoto,
@@ -131,6 +151,10 @@ func ParseGQLMedia(ctx *models.ExtractorContext, data *Media) (*models.Media, er
 				}
 			}
 		}
+	}
+
+	if len(media.Items) == 0 {
+		return nil, fmt.Errorf("no media items found")
 	}
 
 	return media, nil
@@ -285,6 +309,9 @@ func ParseIGramResponse(body []byte) (*IGramResponse, error) {
 }
 
 func GetCDNURL(contentURL string) (string, error) {
+	if strings.TrimSpace(contentURL) == "" {
+		return "", fmt.Errorf("empty URL")
+	}
 	parsedURL, err := url.Parse(contentURL)
 	if err != nil {
 		return "", fmt.Errorf("can't parse igram URL: %w", err)
@@ -294,7 +321,13 @@ func GetCDNURL(contentURL string) (string, error) {
 		return "", fmt.Errorf("can't unescape igram URL: %w", err)
 	}
 	cdnURL := queryParams.Get("uri")
-	return cdnURL, nil
+	if cdnURL != "" {
+		return cdnURL, nil
+	}
+	if parsedURL.Scheme == "http" || parsedURL.Scheme == "https" {
+		return contentURL, nil
+	}
+	return "", fmt.Errorf("no valid CDN URL found in: %s", contentURL)
 }
 
 func GetGQLData(ctx *models.ExtractorContext) (*GraphQLData, error) {

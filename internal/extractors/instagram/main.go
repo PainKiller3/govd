@@ -134,7 +134,6 @@ func GetIGramPost(ctx *models.ExtractorContext) (*models.Media, error) {
 
 	media := ctx.NewMedia()
 	for _, obj := range details.Items {
-		item := media.NewItem()
 		if len(obj.URL) == 0 {
 			return nil, fmt.Errorf("no media url found")
 		}
@@ -143,10 +142,18 @@ func GetIGramPost(ctx *models.ExtractorContext) (*models.Media, error) {
 		if err != nil {
 			return nil, err
 		}
-		thumbnailURL, err := GetCDNURL(obj.Thumb)
-		if err != nil {
-			return nil, err
+		if contentURL == "" {
+			return nil, fmt.Errorf("empty content url")
 		}
+
+		item := media.NewItem()
+		var thumbnailList []string
+		if obj.Thumb != "" {
+			if thumbCDN, err := GetCDNURL(obj.Thumb); err == nil && thumbCDN != "" {
+				thumbnailList = []string{thumbCDN}
+			}
+		}
+
 		fileExt := urlObj.Ext
 		formatID := urlObj.Type
 		switch fileExt {
@@ -157,9 +164,8 @@ func GetIGramPost(ctx *models.ExtractorContext) (*models.Media, error) {
 				URL:          []string{contentURL},
 				VideoCodec:   database.MediaCodecAvc,
 				AudioCodec:   database.MediaCodecAac,
-				ThumbnailURL: []string{thumbnailURL},
-			},
-			)
+				ThumbnailURL: thumbnailList,
+			})
 		case "jpg", "png", "webp", "heic", "jpeg":
 			item.AddFormats(&models.MediaFormat{
 				Type:     database.MediaTypePhoto,
